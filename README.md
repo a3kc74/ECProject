@@ -25,12 +25,14 @@ ECProject/
 │   └── simulated_annealing.py # Thuật toán luyện kim
 ├── utils/
 │   ├── __init__.py
-│   └── visualizer.py          # Công cụ trực quan hóa
+│   ├── visualizer.py          # Công cụ trực quan hóa cơ bản
+│   └── seaborn_visualizer.py  # Trực quan hóa nâng cao với Seaborn
 ├── data/                      # Thư mục chứa dữ liệu problem
 ├── results/                   # Thư mục lưu kết quả
 ├── plots/                     # Thư mục lưu biểu đồ
 ├── benchmark.py               # Framework benchmark
 ├── main.py                    # Script chạy chính
+├── visualize_results.py       # Script trực quan hóa nâng cao
 ├── requirements.txt           # Dependencies
 └── README.md                  # File này
 ```
@@ -73,6 +75,24 @@ Sau khi chạy, bạn sẽ có:
 - **plots/benchmark_boxplot.png**: So sánh hiệu suất
 - **plots/best_route_GA.png**: Lộ trình tốt nhất của GA
 - **plots/best_route_SA.png**: Lộ trình tốt nhất của SA
+
+### Trực quan hóa nâng cao với Seaborn
+
+Chạy script visualization riêng để tạo các biểu đồ thống kê nâng cao:
+
+```bash
+python visualize_results.py
+```
+
+Script này sẽ tạo thêm:
+
+- **plots/seaborn_correlation_heatmap.png**: Ma trận tương quan giữa các metrics
+- **plots/seaborn_pairplot.png**: Pairplot cho tất cả biến số
+- **plots/seaborn_boxplot.png**: Boxplot với swarm overlay
+- **plots/seaborn_violinplot.png**: Violin plot hiển thị phân phối density
+- **plots/seaborn_comparative_performance.png**: Phân tích đa chiều (4 subplots)
+- **plots/seaborn_statistical_summary.png**: Tóm tắt thống kê dạng bar chart
+- **plots/seaborn_runtime_boxplot.png**: So sánh thời gian chạy
 
 ## 🔧 Tùy chỉnh
 
@@ -162,8 +182,9 @@ Fitness = Total_Distance + Penalty * Σ(time_window_violations)
 
 - `numpy>=1.24.0`: Tính toán số học
 - `pandas>=2.0.0`: Xử lý dữ liệu
-- `matplotlib>=3.7.0`: Trực quan hóa
+- `matplotlib>=3.7.0`: Trực quan hóa cơ bản
 - `scipy>=1.10.0`: Các hàm khoa học
+- `seaborn>=0.12.0`: Trực quan hóa thống kê nâng cao
 
 ## 🎯 Mục tiêu học tập
 

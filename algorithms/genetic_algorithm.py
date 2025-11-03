@@ -113,14 +113,193 @@ class GeneticAlgorithm(BaseAlgorithm):
     
     def _initialize_population(self) -> None:
         """
-        Initialize population with random permutations of customer IDs.
-        """
-        customer_ids = list(range(1, self.problem.num_customers + 1))
+        Initialize population with diverse strategies for better coverage.
         
-        for _ in range(self.population_size):
+        Uses multiple initialization methods:
+        - Nearest Neighbor variants (30%)
+        - Earliest Deadline First (20%)
+        - Savings Algorithm (20%)
+        - Regret Insertion (15%)
+        - Pure Random (15%)
+        """
+        self.population = []
+        
+        # 30% Nearest Neighbor variants
+        nn_count = int(0.3 * self.population_size)
+        for _ in range(nn_count):
+            self.population.append(self._nearest_neighbor_init())
+        
+        # 20% Earliest Deadline First
+        edf_count = int(0.2 * self.population_size)
+        for _ in range(edf_count):
+            self.population.append(self._earliest_deadline_first())
+        
+        # 20% Savings Algorithm
+        savings_count = int(0.2 * self.population_size)
+        for _ in range(savings_count):
+            self.population.append(self._savings_init())
+        
+        # 15% Regret Insertion
+        regret_count = int(0.15 * self.population_size)
+        for _ in range(regret_count):
+            self.population.append(self._regret_insertion())
+        
+        # Fill remaining with pure random (for diversity)
+        customer_ids = list(range(1, self.problem.num_customers + 1))
+        remaining = self.population_size - len(self.population)
+        for _ in range(remaining):
             individual = customer_ids.copy()
             random.shuffle(individual)
             self.population.append(individual)
+    
+    def _nearest_neighbor_init(self) -> List[int]:
+        """
+        Nearest Neighbor heuristic initialization.
+        
+        Idea: Start from depot, iteratively visit the nearest unvisited customer.
+        Simple greedy heuristic that minimizes immediate distance.
+        """
+        unvisited = set(range(1, self.problem.num_customers + 1))
+        solution = []
+        current = 0  # Start at depot
+        
+        while unvisited:
+            # Find nearest unvisited customer
+            nearest = min(unvisited, 
+                         key=lambda c: self.problem.distance_matrix[current][c])
+            solution.append(nearest)
+            unvisited.remove(nearest)
+            current = nearest
+        
+        return solution
+    
+    def _earliest_deadline_first(self) -> List[int]:
+        """
+        Sort customers by due_time (earliest deadline first).
+        
+        Idea: Prioritize customers with tight deadlines to minimize
+        late arrivals. Works well when time windows are tight.
+        """
+        customers = [(i, self.problem.customers[i-1].due_time) 
+                     for i in range(1, self.problem.num_customers + 1)]
+        
+        # Sort by due_time (ascending)
+        customers.sort(key=lambda x: x[1])
+        
+        return [c[0] for c in customers]
+    
+    def _savings_init(self) -> List[int]:
+        """
+        Clarke-Wright Savings Algorithm initialization.
+        
+        Idea: Calculate savings s(i,j) = d(0,i) + d(0,j) - d(i,j)
+        Build tour by merging pairs with highest savings.
+        Classic TSP heuristic for distance minimization.
+        """
+        n = self.problem.num_customers
+        customer_ids = list(range(1, n + 1))
+        
+        # Calculate savings for all pairs
+        savings = []
+        for i in customer_ids:
+            for j in customer_ids:
+                if i < j:
+                    save = (self.problem.distance_matrix[0][i] + 
+                           self.problem.distance_matrix[0][j] - 
+                           self.problem.distance_matrix[i][j])
+                    savings.append((save, i, j))
+        
+        # Sort by savings (descending)
+        savings.sort(reverse=True)
+        
+        # Build tour using savings
+        solution = []
+        used = set()
+        
+        for save_val, i, j in savings:
+            if i not in used and j not in used:
+                solution.extend([i, j])
+                used.add(i)
+                used.add(j)
+            elif i not in used:
+                solution.append(i)
+                used.add(i)
+            elif j not in used:
+                solution.append(j)
+                used.add(j)
+            
+            if len(used) == n:
+                break
+        
+        # Add any remaining customers
+        for c in customer_ids:
+            if c not in used:
+                solution.append(c)
+        
+        return solution
+    
+    def _regret_insertion(self) -> List[int]:
+        """
+        Regret-based insertion heuristic.
+        
+        Idea: At each step, insert the customer with largest 'regret'
+        (difference between best and second-best insertion cost).
+        Prioritizes hard-to-place customers first.
+        """
+        unvisited = set(range(1, self.problem.num_customers + 1))
+        
+        # Start with a random customer
+        if unvisited:
+            solution = [unvisited.pop()]
+        else:
+            return []
+        
+        while unvisited:
+            max_regret = -float('inf')
+            best_customer = None
+            best_position = 0
+            
+            for customer in unvisited:
+                insertion_costs = []
+                
+                # Calculate insertion cost at each position
+                for pos in range(len(solution) + 1):
+                    if pos == 0:
+                        cost = self.problem.distance_matrix[0][customer]
+                        if len(solution) > 0:
+                            cost += self.problem.distance_matrix[customer][solution[0]]
+                            cost -= self.problem.distance_matrix[0][solution[0]]
+                    elif pos == len(solution):
+                        cost = self.problem.distance_matrix[solution[-1]][customer]
+                    else:
+                        cost = (self.problem.distance_matrix[solution[pos-1]][customer] +
+                               self.problem.distance_matrix[customer][solution[pos]] -
+                               self.problem.distance_matrix[solution[pos-1]][solution[pos]])
+                    
+                    insertion_costs.append((cost, pos))
+                
+                # Sort by cost
+                insertion_costs.sort()
+                
+                # Calculate regret (difference between best and second-best)
+                if len(insertion_costs) >= 2:
+                    regret = insertion_costs[1][0] - insertion_costs[0][0]
+                else:
+                    regret = insertion_costs[0][0]
+                
+                if regret > max_regret:
+                    max_regret = regret
+                    best_customer = customer
+                    best_position = insertion_costs[0][1]
+            
+            # Insert customer with highest regret
+            solution.insert(best_position, best_customer)
+            unvisited.remove(best_customer)
+        
+        return solution
+    
+
+
     
     def _evaluate_population(self) -> None:
         """

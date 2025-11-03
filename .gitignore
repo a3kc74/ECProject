@@ -138,3 +138,8 @@ results/
 plots/
 *.png
 *.csv
+
+SPB_FORMAT_GUIDE.md
+test_best_known_format.py
+test_spb_format.py
+visualize_results.py

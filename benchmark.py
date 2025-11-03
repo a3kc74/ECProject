@@ -44,6 +44,7 @@ class Benchmark:
         self.raw_results: List[Dict] = []
         self.best_solutions: Dict[Tuple[str, str], Tuple[List[int], float]] = {}
         self.convergence_histories: Dict[Tuple[str, str, int], List[float]] = {}
+        self.problems: Dict[str, TWTSPProblem] = {}  # Store loaded problem instances
     
     def run(self) -> pd.DataFrame:
         """
@@ -76,13 +77,16 @@ class Benchmark:
             
             # Load problem instance
             try:
-                problem = TWTSPProblem(problem_path)
+                problem = TWTSPProblem(problem_path, 'spb')
                 print(f"Loaded problem with {problem.num_customers} customers")
             except Exception as e:
                 print(f"Error loading problem {problem_path}: {e}")
                 print("Creating mock problem instance instead...")
                 problem = TWTSPProblem()  # Use mock data
                 problem_name = "mock_instance"
+            
+            # Store problem instance for later use
+            self.problems[problem_name] = problem
             
             for algo_name, algo_class in self.algorithms.items():
                 print(f"\n  Algorithm: {algo_name}")
@@ -107,7 +111,12 @@ class Benchmark:
                     
                     run_time = end_time - start_time
                     
-                    print(f"Fitness: {best_fitness:.2f}, Time: {run_time:.2f}s")
+                    # Calculate detailed metrics
+                    solution_details = problem.calculate_solution_details(best_solution)
+                    
+                    print(f"Fitness: {best_fitness:.2f}, Time: {run_time:.2f}s, "
+                          f"Distance: {solution_details['total_distance']:.2f}, "
+                          f"Violations: {solution_details['num_violations']}")
                     
                     # Store raw results
                     self.raw_results.append({
@@ -115,7 +124,10 @@ class Benchmark:
                         'problem': problem_name,
                         'run': run + 1,
                         'best_fitness': best_fitness,
-                        'run_time': run_time
+                        'run_time': run_time,
+                        'total_distance': solution_details['total_distance'],
+                        'num_violations': solution_details['num_violations'],
+                        'total_penalty': solution_details['total_penalty']
                     })
                     
                     # Store convergence history
@@ -168,6 +180,21 @@ class Benchmark:
         avg_time = grouped['run_time'].mean().reset_index()
         stats = stats.merge(avg_time, on=['algorithm', 'problem'])
         stats.rename(columns={'run_time': 'avg_run_time'}, inplace=True)
+        
+        # Add average distance
+        avg_distance = grouped['total_distance'].mean().reset_index()
+        stats = stats.merge(avg_distance, on=['algorithm', 'problem'])
+        stats.rename(columns={'total_distance': 'avg_distance'}, inplace=True)
+        
+        # Add average violations
+        avg_violations = grouped['num_violations'].mean().reset_index()
+        stats = stats.merge(avg_violations, on=['algorithm', 'problem'])
+        stats.rename(columns={'num_violations': 'avg_violations'}, inplace=True)
+        
+        # Add total violations (sum across all runs)
+        total_violations = grouped['num_violations'].sum().reset_index()
+        stats = stats.merge(total_violations, on=['algorithm', 'problem'])
+        stats.rename(columns={'num_violations': 'total_violations'}, inplace=True)
         
         return stats
     
@@ -222,6 +249,18 @@ class Benchmark:
         """
         key = (algorithm_name, problem_name, run)
         return self.convergence_histories.get(key, [])
+    
+    def get_problem(self, problem_name: str) -> TWTSPProblem:
+        """
+        Retrieve loaded problem instance.
+        
+        Args:
+            problem_name: Name of the problem instance
+        
+        Returns:
+            TWTSPProblem instance, or None if not found
+        """
+        return self.problems.get(problem_name)
     
     def save_results(self, results_df: pd.DataFrame, filepath: str) -> None:
         """
