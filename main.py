@@ -37,11 +37,11 @@ def main():
     
     ga_config = {
         'population_size': 200,
-        'num_generations': 200,
+        'num_generations': 500,
         'mutation_rate': 0.15,
         'crossover_rate': 0.85,
-        'tournament_size': 20,
-        'elitism_count': 3
+        'tournament_size': 50,
+        'elitism_count': 10
     }
     
     sa_config = {
@@ -55,6 +55,8 @@ def main():
         'GA': ga_config,
         'SA': sa_config
     }
+
+    num_runs = 10  # Number of independent runs per configuration
     
     print("  - Genetic Algorithm configured")
     for key, value in ga_config.items():
@@ -68,32 +70,27 @@ def main():
     # ========================================================================
     print("\nStep 2: Setting up problem instances...")
 
-    # Check if data directory exists
+    # Define the data directory
     data_dir = 'data/SolomonPotvinBengio'
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
-        print(f"  Created directory: {data_dir}")
     
-    # Define problem files
-    problem_files = [
-        # os.path.join(data_dir, 'rc_201.1.txt'),
-        os.path.join(data_dir, 'rc_204.1.txt'),
-    ]
-    
-    # Check if problem files exist, otherwise use mock data
-    existing_problems = []
-    for pf in problem_files:
-        if os.path.exists(pf):
-            existing_problems.append(pf)
-            print(f"  Found problem file: {pf}")
+    # Automatically crawl all .txt files in the directory
+    if os.path.exists(data_dir):
+        all_files = [f for f in os.listdir(data_dir) if f.endswith('.txt')]
+        problem_files = [os.path.join(data_dir, f) for f in sorted(all_files)]
+        
+        if problem_files:
+            print(f"  ✓ Found {len(problem_files)} problem instances in {data_dir}")
+            for i, pf in enumerate(problem_files, 1):
+                print(f"     {i}. {os.path.basename(pf)}")
         else:
-            print(f"  Problem file not found: {pf}")
-    
-    if not existing_problems:
-        print("  No problem files found. Using mock data instead.")
-        problem_files = [None]  # Will trigger mock data creation
+            print(f"  ⚠ No .txt files found in {data_dir}")
+            problem_files = [None]  # Use mock data
     else:
-        problem_files = existing_problems
+        print(f"  ✗ Directory not found: {data_dir}")
+        print(f"  ⚠ Using mock data instead")
+        problem_files = [None]
+    
+    print(f"  Total problems to test: {len(problem_files)}")
     
     # ========================================================================
     # TODO 3: Initialize algorithms
@@ -111,8 +108,6 @@ def main():
     # TODO 4: Run benchmark
     # ========================================================================
     print("\nStep 4: Running benchmark...")
-    
-    num_runs = 5  # Number of independent runs per configuration
     
     benchmark = Benchmark(
         algorithms=algorithms,
@@ -191,16 +186,36 @@ def main():
     
     print("\n" + "=" * 70)
     
-    # Save results to CSV
+    # ========================================================================
+    # TODO 6: Save results to CSV with algorithm config in filename
+    # ========================================================================
+    print("\nStep 5: Saving results...")
+    
     results_dir = 'results'
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
     
-    raw_results_path = os.path.join(results_dir, 'raw_results.csv')
-    stats_results_path = os.path.join(results_dir, 'statistics.csv')
+    # Generate algorithm config string for filename
+    algo_names = '_'.join(algorithms.keys())
+    config_str = f"pop{ga_config['population_size']}_gen{ga_config['num_generations']}"
     
-    benchmark.save_results(raw_results, raw_results_path)
-    benchmark.save_results(stats_results, stats_results_path)
+    # Create filenames with algorithm and config info
+    timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+    raw_results_filename = f'raw_results_{algo_names}_{config_str}_{timestamp}.csv'
+    stats_filename = f'statistics_{algo_names}_{config_str}_{timestamp}.csv'
+    
+    raw_results_path = os.path.join(results_dir, raw_results_filename)
+    stats_results_path = os.path.join(results_dir, stats_filename)
+    
+    # Save raw results with all columns
+    raw_results.to_csv(raw_results_path, index=False)
+    print(f"  ✓ Saved raw results: {raw_results_filename}")
+    print(f"    Columns: {', '.join(raw_results.columns)}")
+    
+    # Save statistics
+    stats_results.to_csv(stats_results_path, index=False)
+    print(f"  ✓ Saved statistics: {stats_filename}")
+    print(f"    Columns: {', '.join(stats_results.columns)}")
     
     # # ========================================================================
     # # TODO 6: Visualization
@@ -272,17 +287,23 @@ def main():
     print("\n" + "=" * 70)
     print("EXPERIMENT COMPLETED SUCCESSFULLY")
     print("=" * 70)
-    print(f"\nResults saved to: {results_dir}/")
-    # print(f"Plots saved to: {plots_dir}/")
-    # print("\nGenerated files:")
-    # print(f"  - {raw_results_path}")
-    # print(f"  - {stats_results_path}")
-    # print(f"  - {convergence_path}")
-    # print(f"  - {benchmark_path}")
-    # for algo_name in algorithms.keys():
-    #     print(f"  - {os.path.join(plots_dir, f'best_route_{algo_name}.png')}")
+    print(f"\n📊 Benchmark Summary:")
+    print(f"  - Algorithms tested: {len(algorithms)}")
+    print(f"  - Problems tested: {len(problem_files)}")
+    print(f"  - Runs per config: {num_runs}")
+    print(f"  - Total experiments: {len(algorithms) * len(problem_files) * num_runs}")
+    
+    print(f"\n💾 Results saved to: {results_dir}/")
+    print(f"  - Raw results: {raw_results_filename}")
+    print(f"  - Statistics: {stats_filename}")
+    
+    print(f"\n📈 CSV File Columns:")
+    print(f"  Raw Results: {', '.join(raw_results.columns)}")
+    print(f"  Statistics: {', '.join(stats_results.columns)}")
+    
     print("\n" + "=" * 70 + "\n")
 
 
 if __name__ == "__main__":
     main()
+

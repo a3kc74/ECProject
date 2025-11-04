@@ -88,6 +88,13 @@ class Benchmark:
             # Store problem instance for later use
             self.problems[problem_name] = problem
             
+            # Get best-known solution if available
+            best_known_fitness = None
+            if problem.has_best_known_solution():
+                best_known = problem.get_best_known_solution()
+                best_known_fitness = best_known['fitness']
+                print(f"Best-known solution: {best_known_fitness:.2f}")
+            
             for algo_name, algo_class in self.algorithms.items():
                 print(f"\n  Algorithm: {algo_name}")
                 
@@ -114,6 +121,11 @@ class Benchmark:
                     # Calculate detailed metrics
                     solution_details = problem.calculate_solution_details(best_solution)
                     
+                    # Calculate gap from best-known solution
+                    gap = None
+                    if best_known_fitness is not None and best_known_fitness > 0:
+                        gap = ((best_fitness - best_known_fitness) / best_known_fitness) * 100
+                    
                     print(f"Fitness: {best_fitness:.2f}, Time: {run_time:.2f}s, "
                           f"Distance: {solution_details['total_distance']:.2f}, "
                           f"Violations: {solution_details['num_violations']}")
@@ -127,7 +139,9 @@ class Benchmark:
                         'run_time': run_time,
                         'total_distance': solution_details['total_distance'],
                         'num_violations': solution_details['num_violations'],
-                        'total_penalty': solution_details['total_penalty']
+                        'total_penalty': solution_details['total_penalty'],
+                        'best_known': best_known_fitness,
+                        'gap': gap
                     })
                     
                     # Store convergence history
@@ -195,6 +209,39 @@ class Benchmark:
         total_violations = grouped['num_violations'].sum().reset_index()
         stats = stats.merge(total_violations, on=['algorithm', 'problem'])
         stats.rename(columns={'num_violations': 'total_violations'}, inplace=True)
+        
+        # Add best-known solution (take first value since it's same for all runs)
+        best_known = grouped['best_known'].first().reset_index()
+        stats = stats.merge(best_known, on=['algorithm', 'problem'])
+        
+        # Calculate gap for the best solution (not average gap)
+        # Gap = (best - best_known) / best_known * 100
+        stats['gap'] = None
+        mask = (stats['best_known'].notna()) & (stats['best_known'] > 0)
+        stats.loc[mask, 'gap'] = ((stats.loc[mask, 'best'] - stats.loc[mask, 'best_known']) / stats.loc[mask, 'best_known']) * 100
+        
+        # Add algorithm configuration parameters
+        config_data = []
+        for algo_name in stats['algorithm'].unique():
+            if algo_name in self.algorithm_configs:
+                config = self.algorithm_configs[algo_name]
+                config_data.append({
+                    'algorithm': algo_name,
+                    'population_size': config.get('population_size', None),
+                    'num_generations': config.get('num_generations', None),
+                    'mutation_rate': config.get('mutation_rate', None),
+                    'crossover_rate': config.get('crossover_rate', None),
+                    'tournament_size': config.get('tournament_size', None),
+                    'elitism_count': config.get('elitism_count', None),
+                    'initial_temperature': config.get('initial_temperature', None),
+                    'final_temperature': config.get('final_temperature', None),
+                    'cooling_rate': config.get('cooling_rate', None),
+                    'iterations_per_temp': config.get('iterations_per_temp', None)
+                })
+        
+        if config_data:
+            config_df = pd.DataFrame(config_data)
+            stats = stats.merge(config_df, on='algorithm', how='left')
         
         return stats
     
