@@ -56,7 +56,7 @@ def main():
         'SA': sa_config
     }
 
-    num_runs = 10  # Number of independent runs per configuration
+    num_runs = 1  # Number of independent runs per configuration
     
     print("  - Genetic Algorithm configured")
     for key, value in ga_config.items():
@@ -98,8 +98,8 @@ def main():
     print("\nStep 3: Initializing algorithms...")
     
     algorithms = {
-        'GA': GeneticAlgorithm,
-        # 'SA': SimulatedAnnealing
+        # 'GA': GeneticAlgorithm,
+        'SA': SimulatedAnnealing
     }
     
     print(f"  Registered {len(algorithms)} algorithms")

@@ -297,8 +297,6 @@ class GeneticAlgorithm(BaseAlgorithm):
             unvisited.remove(best_customer)
         
         return solution
-    
-
 
     
     def _evaluate_population(self) -> None:
