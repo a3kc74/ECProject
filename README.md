@@ -64,16 +64,90 @@ ECProject/
 3. **Run the benchmark**:
 
 ```bash
+# Run both algorithms on all instances (default)
 python main.py
+
+# Run only Genetic Algorithm
+python main.py --algorithm GA
+
+# Run only Simulated Annealing
+python main.py --algorithm SA
+
+# Run on a specific instance
+python main.py --instance n20w20.001.txt
+
+# Run with custom parameters
+python main.py --num-runs 10 --ga-population 300 --ga-generations 3000
 ```
 
 The framework will automatically:
-- Detect all `.txt` files in the data directory
-- Run each algorithm on each instance for 10 independent runs
+- Detect all `.txt` files in the data directory (or use specified instance)
+- Run selected algorithm(s) on each instance for the specified number of runs
 - Calculate gaps vs. best-known solutions
 - Export results to timestamped CSV files
 
 ## Benchmark System
+
+### Command-Line Interface
+
+The framework supports comprehensive command-line arguments for full control over experiments:
+
+```bash
+python main.py [OPTIONS]
+```
+
+**Basic Options:**
+- `--algorithm {GA,SA,both}` or `-a` - Select algorithm(s) to run (default: both)
+- `--instance FILE` or `-i` - Run on specific instance file (default: all instances in data-dir)
+- `--data-dir DIR` or `-d` - Directory containing problem instances (default: data/SolomonPotvinBengio)
+- `--num-runs N` or `-n` - Number of independent runs per configuration (default: 3)
+- `--output-dir DIR` or `-o` - Directory to save CSV results (default: results)
+- `--verbose` or `-v` - Enable detailed output
+
+**Genetic Algorithm Parameters:**
+- `--ga-population` - Population size (default: 150)
+- `--ga-generations` - Number of generations (default: 2000)
+- `--ga-mutation-rate` - Mutation probability (default: 0.08)
+- `--ga-crossover-rate` - Crossover probability (default: 0.92)
+- `--ga-tournament-size` - Tournament selection size (default: 20)
+- `--ga-elitism-count` - Elite solutions preserved (default: 3)
+
+**Simulated Annealing Parameters:**
+- `--sa-initial-temp` - Initial temperature (default: 1000.0)
+- `--sa-final-temp` - Final temperature (default: 0.1)
+- `--sa-cooling-rate` - Cooling rate (default: 0.96)
+- `--sa-iterations-per-temp` - Iterations per temperature (default: 200)
+
+### Usage Examples
+
+```bash
+# View all available options
+python main.py --help
+
+# Run both algorithms on all instances with defaults
+python main.py
+
+# Run only GA on all instances
+python main.py --algorithm GA
+
+# Run only SA on a specific instance
+python main.py -a SA -i n20w20.001.txt
+
+# Run with more runs and verbose output
+python main.py -n 10 -v
+
+# Custom GA parameters
+python main.py -a GA --ga-population 300 --ga-generations 3000 --ga-mutation-rate 0.1
+
+# Custom SA parameters
+python main.py -a SA --sa-initial-temp 2000 --sa-cooling-rate 0.98
+
+# Full customization
+python main.py -a GA -i n20w20.001.txt -n 5 \
+  --ga-population 200 --ga-generations 1500 \
+  --ga-mutation-rate 0.1 --ga-crossover-rate 0.85 \
+  --output-dir my_results -v
+```
 
 ### How It Works
 
@@ -85,7 +159,27 @@ The `Benchmark` class in `benchmark.py` provides a systematic framework for comp
 4. **Statistical Analysis**: Aggregates results across runs (best, mean, std, median, worst)
 5. **CSV Export**: Saves raw results and statistics with configuration parameters
 
+All parameters are configurable via command-line arguments, eliminating the need to modify source code for experiments.
+
 ### Using the Benchmark
+
+The benchmark system is fully controlled via command-line arguments:
+
+```bash
+# Run both GA and SA on all instances
+python main.py
+
+# Run only GA with custom parameters
+python main.py -a GA --ga-population 300 --ga-generations 1500 -n 5
+
+# Run on specific instance
+python main.py -i n20w20.001.txt --num-runs 10
+
+# Run SA with custom temperature schedule
+python main.py -a SA --sa-initial-temp 2000 --sa-cooling-rate 0.98
+```
+
+For programmatic usage, you can still import and use the classes directly:
 
 ```python
 from benchmark import Benchmark
@@ -112,41 +206,50 @@ sa_config = {
     'stopping_temperature': 0.01
 }
 
-algorithms = [
-    ('GA', GeneticAlgorithm, ga_config),
-    ('SA', SimulatedAnnealing, sa_config)
-]
+algorithms = {
+    'GA': GeneticAlgorithm,
+    'SA': SimulatedAnnealing
+}
+
+algorithm_configs = {
+    'GA': ga_config,
+    'SA': sa_config
+}
 
 # Run benchmark
-benchmark = Benchmark(algorithms, problem_files, num_runs=10)
-benchmark.run()
-
-# Export results
-results_df = benchmark.get_results()
-stats_df = benchmark.get_statistics()
+benchmark = Benchmark(
+    algorithms=algorithms,
+    problem_paths=problem_files,
+    num_runs=10,
+    algorithm_configs=algorithm_configs
+)
+raw_results = benchmark.run()
+stats_results = benchmark.get_statistics(raw_results)
 ```
 
 ## Configuration
 
+All configuration parameters can be set via command-line arguments. Use `python main.py --help` to see all options.
+
 ### Genetic Algorithm Parameters
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `population_size` | Number of solutions in population | 200 |
-| `num_generations` | Number of generations to evolve | 500 |
-| `mutation_rate` | Probability of mutation | 0.1 |
-| `crossover_rate` | Probability of crossover | 0.8 |
-| `tournament_size` | Tournament selection size | 5 |
-| `elitism_count` | Number of elite solutions preserved | 2 |
+| Parameter | CLI Argument | Default | Description |
+|-----------|-------------|---------|-------------|
+| `population_size` | `--ga-population` | 150 | Number of solutions in population |
+| `num_generations` | `--ga-generations` | 2000 | Number of generations to evolve |
+| `mutation_rate` | `--ga-mutation-rate` | 0.08 | Probability of mutation |
+| `crossover_rate` | `--ga-crossover-rate` | 0.92 | Probability of crossover |
+| `tournament_size` | `--ga-tournament-size` | 20 | Tournament selection size |
+| `elitism_count` | `--ga-elitism-count` | 3 | Number of elite solutions preserved |
 
 ### Simulated Annealing Parameters
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `initial_temperature` | Starting temperature | 1000 |
-| `cooling_rate` | Temperature reduction rate | 0.95 |
-| `max_iterations` | Maximum iterations | 10000 |
-| `stopping_temperature` | Temperature threshold to stop | 0.01 |
+| Parameter | CLI Argument | Default | Description |
+|-----------|-------------|---------|-------------|
+| `initial_temperature` | `--sa-initial-temp` | 1000.0 | Starting temperature |
+| `final_temperature` | `--sa-final-temp` | 0.1 | Final temperature threshold |
+| `cooling_rate` | `--sa-cooling-rate` | 0.96 | Temperature reduction rate |
+| `iterations_per_temp` | `--sa-iterations-per-temp` | 200 | Iterations at each temperature |
 
 ## Output Files
 
@@ -270,51 +373,62 @@ The framework calculates fitness from the permutation using the same method as t
 
 ## Usage Examples
 
-### Running on All Instances
+### Basic Usage
 
-The `main.py` script automatically detects all problem instances:
+```bash
+# Run both algorithms on all instances with default settings
+python main.py
 
-```python
-# Automatically finds all .txt files in data directory
-data_dir = 'data/SolomonPotvinBengio'
-all_files = [f for f in os.listdir(data_dir) if f.endswith('.txt')]
-problem_files = [os.path.join(data_dir, f) for f in sorted(all_files)]
+# Run only Genetic Algorithm
+python main.py --algorithm GA
+
+# Run only Simulated Annealing
+python main.py --algorithm SA
 ```
 
-### Custom Configuration
+### Instance Selection
 
-Modify `main.py` to experiment with different configurations:
+```bash
+# Run on all instances in default directory
+python main.py
 
-```python
-# Example: More generations, larger population
-ga_config = {
-    'population_size': 300,
-    'num_generations': 1000,
-    'mutation_rate': 0.05,
-    'crossover_rate': 0.9,
-    'tournament_size': 7,
-    'elitism_count': 5
-}
+# Run on specific instance
+python main.py --instance n20w20.001.txt
 
-# Example: Slower cooling, more iterations
-sa_config = {
-    'initial_temperature': 2000,
-    'cooling_rate': 0.98,
-    'max_iterations': 20000,
-    'stopping_temperature': 0.001
-}
+# Run on all instances in custom directory
+python main.py --data-dir path/to/instances
 ```
 
-### Running Specific Algorithms
+### Custom Parameters
 
-To run only GA or only SA, modify the algorithms list in `main.py`:
+```bash
+# Increase population and generations for GA
+python main.py -a GA --ga-population 300 --ga-generations 3000
 
-```python
-# Only GA
-algorithms = [('GA', GeneticAlgorithm, ga_config)]
+# Adjust SA cooling schedule
+python main.py -a SA --sa-initial-temp 2000 --sa-cooling-rate 0.98
 
-# Only SA
-algorithms = [('SA', SimulatedAnnealing, sa_config)]
+# Run more independent trials
+python main.py --num-runs 20
+
+# Combine multiple options
+python main.py -a GA -n 10 --ga-population 200 --ga-mutation-rate 0.1 -v
+```
+
+### Output Control
+
+```bash
+# Save results to custom directory
+python main.py --output-dir my_experiments
+
+# Enable verbose output for detailed information
+python main.py --verbose
+
+# Full experiment with custom settings
+python main.py -a both -i n20w20.001.txt -n 5 \
+  --ga-population 200 --ga-generations 1500 \
+  --sa-initial-temp 1500 \
+  --output-dir results/experiment_001 -v
 ```
 
 ## Interpreting Results
