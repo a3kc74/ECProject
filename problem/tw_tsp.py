@@ -408,7 +408,7 @@ class TWTSPProblem:
         current_location = 0  # Start at depot (index 0)
         
         # Heavy penalty coefficient for time window violations
-        PENALTY_COEFFICIENT = float(np.max(self.distance_matrix)) * 3.0
+        PENALTY_COEFFICIENT = 1000.0
         
         for customer_id in solution:
             # Customer ID in solution corresponds to index in distance matrix

@@ -9,9 +9,11 @@ from typing import Dict, List, Type, Tuple
 import time
 import os
 import sys
+import math
 
 from problem.tw_tsp import TWTSPProblem
 from algorithms.base_algorithm import BaseAlgorithm
+from utils.time_estimator import TimeEstimator
 
 
 class Benchmark:
@@ -51,6 +53,7 @@ class Benchmark:
         Run the complete benchmark.
         
         Executes all algorithms on all problems for the specified number of runs.
+        Shows time estimates for overall completion.
         
         Returns:
             DataFrame containing all raw results with columns:
@@ -68,6 +71,12 @@ class Benchmark:
         print(f"Runs per configuration: {self.num_runs}")
         print(f"Total experiments: {len(self.algorithms) * len(self.problem_paths) * self.num_runs}")
         print("=" * 70)
+        
+        # Time tracking
+        total_experiments = len(self.algorithms) * len(self.problem_paths) * self.num_runs
+        experiments_completed = 0
+        start_time = time.time()
+        run_times = []
         
         for problem_path in self.problem_paths:
             # Extract problem name from path
@@ -106,20 +115,43 @@ class Benchmark:
                 overall_best_solution = None
                 
                 for run in range(self.num_runs):
-                    print(f"    Run {run + 1}/{self.num_runs}...", end=' ')
+                    # Calculate remaining experiments
+                    experiments_completed += 1
+                    elapsed = time.time() - start_time
                     
-                    # Create algorithm instance
-                    algorithm = algo_class(problem, config)
+                    # Estimate remaining time
+                    if experiments_completed > 1:
+                        avg_time_per_experiment = elapsed / experiments_completed
+                        remaining_experiments = total_experiments - experiments_completed
+                        estimated_remaining = avg_time_per_experiment * remaining_experiments
+                        estimated_total = elapsed + estimated_remaining
+                        
+                        time_str = self._format_time(estimated_remaining)
+                        total_str = self._format_time(estimated_total)
+                        progress = (experiments_completed / total_experiments) * 100
+                        
+                        print(f"    Run {run + 1}/{self.num_runs}...", end=' ')
+                    else:
+                        print(f"    Run {run + 1}/{self.num_runs}...", end=' ')
+                    
+                    # Create algorithm instance (disable progress in benchmark for cleaner output)
+                    config_with_no_progress = config.copy()
+                    config_with_no_progress['show_progress'] = False
+                    algorithm = algo_class(problem, config_with_no_progress)
                     
                     # Run algorithm and measure time
-                    start_time = time.time()
+                    run_start = time.time()
                     best_solution, best_fitness, fitness_history = algorithm.solve()
-                    end_time = time.time()
+                    run_end = time.time()
                     
-                    run_time = end_time - start_time
+                    run_time = run_end - run_start
+                    run_times.append(run_time)
                     
                     # Calculate detailed metrics
                     solution_details = problem.calculate_solution_details(best_solution)
+                    
+                    # Use the recalculated fitness (with correct penalty coefficient)
+                    best_fitness = solution_details['fitness']
                     
                     # Calculate gap from best-known solution
                     gap = None
@@ -128,7 +160,13 @@ class Benchmark:
                     
                     print(f"Fitness: {best_fitness:.2f}, Time: {run_time:.2f}s, "
                           f"Distance: {solution_details['total_distance']:.2f}, "
-                          f"Violations: {solution_details['num_violations']}")
+                          f"Violations: {solution_details['num_violations']}", end='')
+                    
+                    # Show time estimate
+                    if experiments_completed > 1:
+                        print(f" [Est. remaining: {time_str}]")
+                    else:
+                        print()
                     
                     # Store raw results
                     self.raw_results.append({
@@ -162,6 +200,14 @@ class Benchmark:
         
         print("\n" + "=" * 70)
         print("BENCHMARK COMPLETED")
+        print("=" * 70)
+        
+        # Print time summary
+        total_time = time.time() - start_time
+        avg_run_time = np.mean(run_times) if run_times else 0
+        print(f"\nTotal benchmark time: {self._format_time(total_time)}")
+        print(f"Average time per experiment: {avg_run_time:.2f}s")
+        print(f"Total experiments: {experiments_completed}/{total_experiments}")
         print("=" * 70)
         
         # Convert results to DataFrame
@@ -320,3 +366,28 @@ class Benchmark:
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         results_df.to_csv(filepath, index=False)
         print(f"Results saved to: {filepath}")
+    
+    @staticmethod
+    def _format_time(seconds: float) -> str:
+        """
+        Format seconds to readable time string.
+        
+        Args:
+            seconds: Time in seconds
+        
+        Returns:
+            Formatted time string (HH:MM:SS or MM:SS)
+        """
+        if seconds is None or math.isnan(seconds) or math.isinf(seconds):
+            return "??:??"
+        
+        seconds = max(0, seconds)
+        
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+        
+        if hours > 0:
+            return f"{hours}:{minutes:02d}:{secs:02d}"
+        else:
+            return f"{minutes}:{secs:02d}"

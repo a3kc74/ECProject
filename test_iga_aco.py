@@ -90,7 +90,7 @@ def test_iga_aco_real_instance():
     print("=" * 80)
     
     # Load real instance
-    instance_path = "data/SolomonPotvinBengio/rc_208.3.txt"
+    instance_path = "data/OhlmannThomas/n150w120.003.txt"
     
     if not os.path.exists(instance_path):
         print(f"\nWarning: Instance file not found: {instance_path}")
@@ -112,13 +112,13 @@ def test_iga_aco_real_instance():
     
     # Configure algorithm - optimized for better results
     config = {
-        'num_iterations': 500,          # Increased for better convergence
+        'num_iterations': 1000,          # Increased for better convergence
         'iga_population_size': 100,     # Larger population for diversity
         'iga_elite_ratio': 0.1,         # Standard elite ratio
-        'iga_vnd_probability': 0.5,     # Higher VND probability for intensification
-        'aco_num_ants': 60,             # More ants for exploration
+        'iga_vnd_probability': 0.7,     # Higher VND probability for intensification
+        'aco_num_ants': 70,             # More ants for exploration
         'aco_alpha': 1.0,               # Pheromone importance
-        'aco_beta': 3.0,                # Higher heuristic importance (time-aware)
+        'aco_beta': 5.0,                # Higher heuristic importance (time-aware)
         'aco_rho': 0.1,                 # Evaporation rate
         'aco_q0': 0.9,                  # High exploitation
         'exchange_interval': 10         # Exchange every 10 iterations

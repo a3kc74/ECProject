@@ -154,22 +154,67 @@ class GeneticAlgorithm(BaseAlgorithm):
     
     def _nearest_neighbor_init(self) -> List[int]:
         """
-        Nearest Neighbor heuristic initialization.
+        Time-window-aware nearest neighbor heuristic initialization.
         
-        Idea: Start from depot, iteratively visit the nearest unvisited customer.
-        Simple greedy heuristic that minimizes immediate distance.
+        Greedy construction that respects time windows:
+        1. Start from depot at time 0
+        2. At each step, find nearest unvisited customer that can be reached
+           within their time window, minimizing lateness
+        3. Fallback to any feasible customer if no perfect fit exists
+        4. Last resort: pick nearest customer (may create violations)
+        
+        Returns:
+            Initial solution
         """
         unvisited = set(range(1, self.problem.num_customers + 1))
         solution = []
-        current = 0  # Start at depot
+        current_location = 0  # Start at depot
+        current_time = 0.0
         
         while unvisited:
-            # Find nearest unvisited customer
-            nearest = min(unvisited, 
-                         key=lambda c: self.problem.distance_matrix[current][c])
-            solution.append(nearest)
-            unvisited.remove(nearest)
-            current = nearest
+            best_candidate = None
+            best_score = float('inf')
+            
+            for customer_id in unvisited:
+                # Calculate arrival time at this customer
+                travel_dist = self.problem.distance_matrix[current_location][customer_id]
+                arrival_time = current_time + travel_dist
+                
+                customer = self.problem.customers[customer_id - 1]
+                
+                # Calculate a score that prefers feasible visits (no violations)
+                # Score = arrival_time if feasible, else heavily penalize violations
+                if arrival_time <= customer.due_time:
+                    # Feasible: prioritize by arrival time (closer is better)
+                    # Prefer to arrive closer to ready_time to minimize waiting
+                    if arrival_time < customer.ready_time:
+                        score = customer.ready_time  # Will wait anyway
+                    else:
+                        score = arrival_time
+                else:
+                    # Infeasible: penalize by violation amount
+                    violation = arrival_time - customer.due_time
+                    score = customer.due_time + 10000 * violation  # Heavy penalty for violations
+                
+                if score < best_score:
+                    best_score = score
+                    best_candidate = customer_id
+            
+            # Add best candidate to solution
+            solution.append(best_candidate)
+            unvisited.remove(best_candidate)
+            
+            # Update current location and time
+            travel_dist = self.problem.distance_matrix[current_location][best_candidate]
+            current_time += travel_dist
+            
+            customer = self.problem.customers[best_candidate - 1]
+            # Simulate arrival and service
+            if current_time < customer.ready_time:
+                current_time = customer.ready_time
+            current_time += customer.service_time
+            
+            current_location = best_candidate
         
         return solution
     
