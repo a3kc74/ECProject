@@ -27,6 +27,5 @@ python3 run_iga_aco.py \
     --iga-population "$IGA_POP" \
     --num-iterations "$NUM_ITER" \
     --aco-num-ants "$ACO_ANTS" \
-    "$@" 2>&1 | tee "$LOG_FILE"
 
 echo "Done. Results saved to results/ and log: $LOG_FILE"

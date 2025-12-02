@@ -17,7 +17,7 @@ echo ""
 mkdir -p results
 mkdir -p logs
 
-DATA_DIR="data/SolomonPotvinBengio"
+DATA_DIR="data/OhlmannThomas"
 NUM_RUNS=25
 
 # Count total instances
